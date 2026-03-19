@@ -1,0 +1,320 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Student Performance · Linear Regression</title>
+  <link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg:#09090f; --surface:#10101c; --card:#14142a; --border:#1e1e38;
+      --border2:#252545; --accent:#818cf8; --green:#4ade80; --pink:#f472b6;
+      --yellow:#fbbf24; --red:#f87171; --text:#e2e8f0; --muted:#64748b;
+      --mono:'Space Mono',monospace; --sans:'DM Sans',sans-serif;
+    }
+    *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+    body{background:var(--bg);color:var(--text);font-family:var(--sans);min-height:100vh}
+
+    header{display:flex;align-items:center;gap:1.2rem;padding:1rem 2rem;
+      border-bottom:1px solid var(--border);background:linear-gradient(90deg,#0f0f1e,#09090f)}
+    .logo{font-family:var(--mono);font-size:.75rem;background:#1a1a3a;
+      border:1px solid var(--accent)55;color:var(--accent);padding:.3rem .75rem;border-radius:6px}
+    header h1{font-size:1rem;font-weight:400;color:var(--muted)}
+    header h1 b{color:var(--text);font-weight:600}
+    .hbadge{margin-left:auto;font-family:var(--mono);font-size:.68rem;
+      background:#0d1f12;border:1px solid #4ade8033;color:var(--green);
+      padding:.25rem .65rem;border-radius:20px}
+
+    .page{max-width:1280px;margin:0 auto;padding:1.5rem 1.5rem 5rem}
+    .stats-row{display:grid;grid-template-columns:repeat(4,1fr);gap:.7rem;margin-bottom:1.25rem}
+    .stat{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:.8rem .9rem}
+    .stat-lbl{font-family:var(--mono);font-size:.62rem;color:var(--muted);margin-bottom:.3rem;text-transform:uppercase}
+    .stat-val{font-family:var(--mono);font-size:1.05rem;font-weight:700}
+    .c-green{color:var(--green)} .c-accent{color:var(--accent)}
+
+    /* R2 meter */
+    .r2-meter{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:.8rem .9rem}
+    .r2-label{font-family:var(--mono);font-size:.62rem;color:var(--muted);margin-bottom:.5rem;text-transform:uppercase}
+    .r2-bar-bg{height:8px;background:var(--border2);border-radius:4px;overflow:hidden;margin-bottom:.35rem}
+    .r2-bar-fill{height:100%;border-radius:4px;background:linear-gradient(90deg,#f87171,#fbbf24,#4ade80);transition:width .6s ease}
+    .r2-nums{display:flex;justify-content:space-between;font-family:var(--mono);font-size:.65rem;color:var(--muted)}
+    .r2-val{font-family:var(--mono);font-size:1.05rem;font-weight:700;color:var(--green)}
+
+    .top-grid{display:grid;grid-template-columns:360px 1fr;gap:1.25rem;margin-bottom:1.25rem}
+    @media(max-width:860px){.top-grid{grid-template-columns:1fr}}
+    .card{background:var(--card);border:1px solid var(--border);border-radius:14px;padding:1.4rem}
+    .card-label{font-family:var(--mono);font-size:.65rem;letter-spacing:.12em;text-transform:uppercase;
+      color:var(--muted);margin-bottom:1.1rem;display:flex;align-items:center;gap:.5rem}
+    .card-label::after{content:'';flex:1;height:1px;background:var(--border2)}
+
+    .form-grid{display:flex;flex-direction:column;gap:.85rem}
+    .form-group label{display:block;font-size:.75rem;color:var(--muted);font-family:var(--mono);margin-bottom:.4rem}
+    .range-row{display:flex;align-items:center;gap:.8rem}
+    input[type=range]{width:100%;accent-color:var(--accent);cursor:pointer}
+    .range-val{font-family:var(--mono);font-size:.85rem;color:var(--accent);min-width:40px;text-align:right}
+    .toggle-row{display:flex;gap:.6rem}
+    .tog{flex:1;padding:.55rem;text-align:center;font-family:var(--mono);font-size:.8rem;
+      background:var(--surface);border:1px solid var(--border2);border-radius:8px;
+      cursor:pointer;color:var(--muted);transition:all .2s}
+    .tog.active{background:#1a1a3a;border-color:var(--accent);color:var(--accent)}
+
+    .btn-predict{width:100%;margin-top:.3rem;background:var(--accent);color:#09090f;
+      font-family:var(--mono);font-weight:700;font-size:.82rem;border:none;
+      border-radius:10px;padding:.85rem;cursor:pointer;transition:opacity .2s,transform .1s}
+    .btn-predict:hover{opacity:.88} .btn-predict:active{transform:scale(.98)}
+    .btn-predict.busy{opacity:.45;pointer-events:none}
+
+    #result-box{margin-top:1rem;display:none;background:var(--surface);
+      border:1px solid var(--border2);border-radius:12px;padding:1rem 1.2rem;animation:fadeUp .3s ease}
+    #result-box.on{display:block}
+    .result-top{display:flex;align-items:baseline;gap:.8rem;flex-wrap:wrap}
+    .result-score{font-family:var(--mono);font-size:2rem;font-weight:700}
+    .grade-chip{font-family:var(--mono);font-size:.85rem;font-weight:700;padding:.2rem .7rem;border-radius:20px}
+    .grade-A{background:#0d2016;color:var(--green);border:1px solid #4ade8033}
+    .grade-B{background:#14143a;color:var(--accent);border:1px solid #818cf833}
+    .grade-C{background:#1e180a;color:var(--yellow);border:1px solid #fbbf2433}
+    .grade-D{background:#1e0f0f;color:var(--red);border:1px solid #f8717133}
+    .grade-F{background:#1a0a0a;color:#ef4444;border:1px solid #ef444433}
+    .result-sub{font-size:.75rem;color:var(--muted);margin-top:.4rem;font-family:var(--mono)}
+
+    /* formula */
+    .formula{background:var(--surface);border:1px solid var(--border);border-left:3px solid var(--accent);
+      border-radius:8px;padding:.85rem 1rem;margin-bottom:1.2rem;
+      font-family:var(--mono);font-size:.7rem;color:var(--accent);line-height:2}
+
+    #chart-img{width:100%;border-radius:8px;display:block;transition:opacity .3s}
+    #chart-img.dim{opacity:.35}
+
+    .tbl-wrap{max-height:320px;overflow-y:auto;border-radius:10px;border:1px solid var(--border)}
+    .tbl-wrap::-webkit-scrollbar{width:5px}
+    .tbl-wrap::-webkit-scrollbar-track{background:var(--surface)}
+    .tbl-wrap::-webkit-scrollbar-thumb{background:var(--border2);border-radius:3px}
+    table{width:100%;border-collapse:collapse;font-size:.76rem}
+    thead th{background:var(--surface);color:var(--muted);font-family:var(--mono);font-size:.62rem;
+      text-transform:uppercase;letter-spacing:.08em;padding:.6rem .85rem;text-align:left;
+      position:sticky;top:0;border-bottom:1px solid var(--border)}
+    tbody tr{border-top:1px solid var(--border)}
+    tbody tr:hover{background:var(--surface)}
+    tbody td{padding:.48rem .85rem;font-family:var(--mono);font-size:.74rem}
+    .grade-cell{font-weight:700;font-size:.72rem;padding:.15rem .45rem;border-radius:4px}
+    .score-bar-bg{height:4px;background:var(--border);border-radius:2px;overflow:hidden;width:70px}
+    .score-bar-fill{height:100%;border-radius:2px}
+
+    @keyframes fadeUp{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+  </style>
+</head>
+<body>
+
+<header>
+  <span class="logo">LR</span>
+  <h1><b>Student Performance Predictor</b> · Линейная регрессия</h1>
+  <span class="hbadge">{{ total_rows }} строк</span>
+</header>
+
+<div class="page">
+
+  <!-- STATS -->
+  <div class="stats-row">
+    <!-- R2 meter -->
+    <div class="r2-meter">
+      <div class="r2-label">R² Score (точность)</div>
+      <div style="display:flex;align-items:center;gap:.7rem;margin-bottom:.4rem">
+        <div class="r2-bar-bg" style="flex:1">
+          <div class="r2-bar-fill" style="width:{{ (r2 * 100)|int }}%"></div>
+        </div>
+        <span class="r2-val">{{ r2 }}</span>
+      </div>
+      <div class="r2-nums"><span>0</span><span>0.5</span><span>1.0</span></div>
+    </div>
+    <div class="stat">
+      <div class="stat-lbl">RMSE</div>
+      <div class="stat-val c-accent">{{ rmse }} pts</div>
+    </div>
+    <div class="stat">
+      <div class="stat-lbl">Признаков</div>
+      <div class="stat-val c-accent">5</div>
+    </div>
+    <div class="stat">
+      <div class="stat-lbl">Алгоритм</div>
+      <div class="stat-val" style="font-size:.8rem;color:var(--muted)">LinReg</div>
+    </div>
+  </div>
+
+  <div class="top-grid">
+    <!-- LEFT -->
+    <div>
+      <div class="card" style="margin-bottom:1.25rem">
+        <p class="card-label">// прогноз</p>
+        <div class="form-grid">
+          <div class="form-group">
+            <label>📚 Часов учёбы в день (1–9)</label>
+            <div class="range-row">
+              <input type="range" id="r-hours" min="1" max="9" step="1" value="5"
+                     oninput="document.getElementById('v-hours').textContent=this.value">
+              <span class="range-val" id="v-hours">5</span>
+            </div>
+          </div>
+          <div class="form-group">
+            <label>📊 Предыдущие оценки (40–99)</label>
+            <div class="range-row">
+              <input type="range" id="r-prev" min="40" max="99" step="1" value="70"
+                     oninput="document.getElementById('v-prev').textContent=this.value">
+              <span class="range-val" id="v-prev">70</span>
+            </div>
+          </div>
+          <div class="form-group">
+            <label>🏃 Внеклассные занятия</label>
+            <div class="toggle-row">
+              <div class="tog active" id="tog-yes" onclick="setExtra(1)">Yes</div>
+              <div class="tog" id="tog-no" onclick="setExtra(0)">No</div>
+            </div>
+          </div>
+          <div class="form-group">
+            <label>😴 Часов сна (1–9)</label>
+            <div class="range-row">
+              <input type="range" id="r-sleep" min="1" max="9" step="1" value="7"
+                     oninput="document.getElementById('v-sleep').textContent=this.value">
+              <span class="range-val" id="v-sleep">7</span>
+            </div>
+          </div>
+          <div class="form-group">
+            <label>📝 Пробных тестов решено (0–9)</label>
+            <div class="range-row">
+              <input type="range" id="r-papers" min="0" max="9" step="1" value="3"
+                     oninput="document.getElementById('v-papers').textContent=this.value">
+              <span class="range-val" id="v-papers">3</span>
+            </div>
+          </div>
+        </div>
+        <button class="btn-predict" id="predict-btn" onclick="predict()">▶ Рассчитать прогноз</button>
+
+        <div id="result-box">
+          <div class="result-top">
+            <span class="result-score" id="res-score"></span>
+            <span class="grade-chip" id="res-grade"></span>
+          </div>
+          <p class="result-sub">из 100 возможных баллов</p>
+        </div>
+      </div>
+
+      <!-- FORMULA -->
+      <div class="card">
+        <p class="card-label">// формула модели</p>
+        <div class="formula">
+          score = {{ coef['Hours Studied']|round(2) }} × часы<br>
+                + {{ coef['Previous Scores']|round(2) }} × оценки<br>
+                + {{ coef['Extracurricular Activities']|round(2) }} × внекл.<br>
+                + {{ coef['Sleep Hours']|round(2) }} × сон<br>
+                + {{ coef['Sample Question Papers Practiced']|round(2) }} × тесты<br>
+                + ({{ intercept }})
+        </div>
+      </div>
+    </div>
+
+    <!-- RIGHT: CHART -->
+    <div class="card">
+      <p class="card-label">// графики регрессии (1 000 точек)</p>
+      <img id="chart-img" src="data:image/png;base64,{{ chart_b64 }}" alt="charts">
+    </div>
+  </div>
+
+  <!-- TABLE -->
+  <div class="card">
+    <p class="card-label">// датасет · первые 200 из {{ total_rows }}</p>
+    <div class="tbl-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>#</th><th>Часы учёбы</th><th>Пред. оценки</th>
+            <th>Внекл.</th><th>Сон</th><th>Тесты</th>
+            <th>Балл</th><th>Прогресс</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for row in dataset %}
+          {% set s = row['Performance Index'] %}
+          {% if   s >= 90 %}{% set gc="grade-A" %}{% set bc="#4ade80" %}
+          {% elif s >= 75 %}{% set gc="grade-B" %}{% set bc="#818cf8" %}
+          {% elif s >= 60 %}{% set gc="grade-C" %}{% set bc="#fbbf24" %}
+          {% elif s >= 40 %}{% set gc="grade-D" %}{% set bc="#f87171" %}
+          {% else          %}{% set gc="grade-F" %}{% set bc="#ef4444" %}
+          {% endif %}
+          <tr>
+            <td style="color:var(--muted)">{{ loop.index }}</td>
+            <td>{{ row['Hours Studied'] }}</td>
+            <td>{{ row['Previous Scores'] }}</td>
+            <td>{{ row['Extracurricular Activities'] }}</td>
+            <td>{{ row['Sleep Hours'] }}</td>
+            <td>{{ row['Sample Question Papers Practiced'] }}</td>
+            <td>{{ s }}</td>
+            <td>
+              <div class="score-bar-bg">
+                <div class="score-bar-fill" style="width:{{ s }}%;background:{{ bc }}"></div>
+              </div>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+</div>
+
+<script>
+let extraVal = 1;
+function setExtra(v) {
+  extraVal = v;
+  document.getElementById('tog-yes').classList.toggle('active', v === 1);
+  document.getElementById('tog-no').classList.toggle('active',  v === 0);
+}
+
+async function predict() {
+  const btn = document.getElementById("predict-btn");
+  const box = document.getElementById("result-box");
+  const img = document.getElementById("chart-img");
+
+  box.classList.remove("on");
+  btn.classList.add("busy");
+  btn.textContent = "⏳ Считаем...";
+  img.classList.add("dim");
+
+  const payload = {
+    hours:       parseFloat(document.getElementById("r-hours").value),
+    prev_scores: parseFloat(document.getElementById("r-prev").value),
+    extra:       extraVal,
+    sleep:       parseFloat(document.getElementById("r-sleep").value),
+    papers:      parseFloat(document.getElementById("r-papers").value),
+  };
+
+  try {
+    const res  = await fetch("/predict", {
+      method:"POST", headers:{"Content-Type":"application/json"},
+      body: JSON.stringify(payload)
+    });
+    const data = await res.json();
+    if (data.error) { alert(data.error); return; }
+
+    const gradeClasses = {A:"grade-A",B:"grade-B",C:"grade-C",D:"grade-D",F:"grade-F"};
+    const scoreEl = document.getElementById("res-score");
+    scoreEl.textContent = data.score + " / 100";
+    scoreEl.style.color = data.score >= 90 ? "var(--green)"
+                        : data.score >= 75 ? "var(--accent)"
+                        : data.score >= 60 ? "var(--yellow)" : "var(--red)";
+    const gradeEl = document.getElementById("res-grade");
+    gradeEl.textContent = data.grade;
+    gradeEl.className   = "grade-chip " + gradeClasses[data.grade];
+
+    img.src = "data:image/png;base64," + data.chart_b64;
+    box.classList.add("on");
+  } catch(e) {
+    alert("Ошибка соединения");
+  } finally {
+    btn.classList.remove("busy");
+    btn.textContent = "▶ Рассчитать прогноз";
+    img.classList.remove("dim");
+  }
+}
+</script>
+</body>
+</html>
